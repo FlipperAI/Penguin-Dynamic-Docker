@@ -235,13 +235,13 @@ async def run(submission: Submission):
                 nano_cpus=int(float(RESOURCE_LIMITS["cpus"]) * 1e9)
             )
         elif language=="bash":
-            IMAGE = "bash:latest"
+            IMAGE = "alpine:latest"
             code_file = f"/tmp/{uuid.uuid4()}.sh"
             with open(code_file, "w") as f:
                 f.write(code)
             container = docker_client.containers.run(
                 image=IMAGE,
-                command=f"bash {os.path.basename(code_file)}",
+                command=f"apk add bash && bash {os.path.basename(code_file)}",
                 volumes={os.path.dirname(code_file): {"bind": "/code", "mode": "rw"}},
                 working_dir="/code",
                 remove=True,
