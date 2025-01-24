@@ -241,6 +241,7 @@ async def run(submission: Submission):
                 f.write(code)
             container = docker_client.containers.run(
                 image=IMAGE,
+                command=f"apk add bash && bash {os.path.basename(code_file)}",
                 volumes={os.path.dirname(code_file): {"bind": "/code", "mode": "rw"}},
                 working_dir="/code",
                 remove=True,
@@ -248,8 +249,6 @@ async def run(submission: Submission):
                 mem_limit=RESOURCE_LIMITS["memory"],
                 nano_cpus=int(float(RESOURCE_LIMITS["cpus"]) * 1e9)
             )
-            container.exec_run("apk add bash > /dev/null 2>&1")
-            container.exec_run(f"bash {os.path.basename(code_file)}")
         elif language=="powershell":
             IMAGE = "mcr.microsoft.com/powershell:latest"
             code_file = f"/tmp/{uuid.uuid4()}.ps1"
