@@ -296,6 +296,7 @@ def get_submissions_router() -> APIRouter:
                 )
             else:
                 return {"error": "language not supported"}
+            container.wait()
             output = container.logs().decode("utf-8")
             return output
         except docker.errors.ContainerError as e:
