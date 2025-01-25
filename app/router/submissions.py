@@ -51,6 +51,8 @@ def get_submissions_router() -> APIRouter:
                 code_file = f"/tmp/{uuid.uuid4()}.c"
                 with open(code_file, "w") as f:
                     f.write(code)
+                with open(code_file+"input", "w") as f:
+                    f.write(input_data + "\r\n")
                 container = docker_client.containers.create(
                     image=IMAGE,
                     command="bash",
@@ -75,6 +77,8 @@ def get_submissions_router() -> APIRouter:
                 code_file = f"/tmp/{uuid.uuid4()}.cpp"
                 with open(code_file, "w") as f:
                     f.write(code)
+                with open(code_file+"input", "w") as f:
+                    f.write(input_data + "\r\n")
                 container = docker_client.containers.create(
                     image=IMAGE,
                     command="bash",
@@ -99,6 +103,8 @@ def get_submissions_router() -> APIRouter:
                 code_file = f"/tmp/{uuid.uuid4()}.java"
                 with open(code_file, "w") as f:
                     f.write(code)
+                with open(code_file+"input", "w") as f:
+                    f.write(input_data + "\r\n")
                 class_name = os.path.basename(code_file).replace(".java", "")
                 container = docker_client.containers.create(
                     image=IMAGE,
@@ -124,6 +130,8 @@ def get_submissions_router() -> APIRouter:
                 code_file = f"/tmp/{uuid.uuid4()}.js"
                 with open(code_file, "w") as f:
                     f.write(code)
+                with open(code_file+"input", "w") as f:
+                    f.write(input_data + "\r\n")
                 container = docker_client.containers.create(
                     image=IMAGE,
                     command="bash",
@@ -135,7 +143,7 @@ def get_submissions_router() -> APIRouter:
                 )
                 container.start()
                 execution_command=["sh", "-c", f"cat {os.path.basename(code_file)+'input'} | node {os.path.basename(code_file)}"]
-                execution_result = container.exec_run(execute_command)
+                execution_result = container.exec_run(execution_command)
                 output = execution_result.output.decode("utf-8")
                 container.stop()
                 container.remove()
