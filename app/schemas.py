@@ -1,5 +1,6 @@
 import uuid
 from pydantic import BaseModel
+from typing import Literal
 from fastapi_users import schemas
 
 class UserRead(schemas.BaseUser[uuid.UUID]):
@@ -16,3 +17,4 @@ class UserUpdate(schemas.BaseUserUpdate):
 class SubmissionCreate(BaseModel):
     code: str
     language: str
+    #language: Literal["python", "bash"]
