@@ -139,7 +139,7 @@ def get_submissions_router() -> APIRouter:
             else:
                 return "Error: Language not supported"
             signal.signal(signal.SIGALRM, handler)
-            signal.alarm(5)
+            signal.alarm(60)
             try:
                 start_time = time.perf_counter()  # Start timing
                 execution_result = container.exec_run(execute_command, demux=True)
@@ -149,7 +149,7 @@ def get_submissions_router() -> APIRouter:
                 stderr = execution_result.output[1]
                 if stderr is None: stderr = bytes()
                 output = {"exit_code": execution_result.exit_code, "stdout": stdout.decode('utf-8'), "stderr":stderr.decode('utf-8'), "exec_time": end_time- start_time}
-                if exit_code != 0:
+                if execution_result.exit_code != 0:
                     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=output)
             except Exception as e:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"reason":"timeout waiting for code to run"})
