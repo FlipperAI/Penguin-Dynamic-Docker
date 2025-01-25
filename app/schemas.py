@@ -17,4 +17,5 @@ class UserUpdate(schemas.BaseUserUpdate):
 class SubmissionCreate(BaseModel):
     code: str
     language: str
+    input_data: str | None = None
     #language: Literal["python", "bash"]

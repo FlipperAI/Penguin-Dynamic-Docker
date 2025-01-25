@@ -6,6 +6,7 @@ import os
 from app.schemas import SubmissionCreate
 from app.users import current_active_user
 from app.db import User
+import time
 
 RESOURCE_LIMITS = {"memory": "256m", "cpus": "0.5"}
 
@@ -23,23 +24,28 @@ def get_submissions_router() -> APIRouter:
         try:
             code = submission.code
             language = submission.language
+            input_data = submission.input_data
+            if input_data is None: input_data = ""
             if language=="python":
                 IMAGE = "python:3.9-slim"
                 code_file = f"/tmp/{uuid.uuid4()}.py"
                 with open(code_file, "w") as f:
                     f.write(code)
-                container = docker_client.containers.run(
+                with open(code_file+"input", "w") as f:
+                    f.write(input_data + "\r\n")
+                container = docker_client.containers.create(
                     image=IMAGE,
-                    command=f"python {os.path.basename(code_file)}",
+                    command="bash",
                     volumes={os.path.dirname(code_file): {"bind": "/code", "mode": "rw"}},
                     working_dir="/code",
-                    remove=False,
-                    detach=True,
+                    tty=True,
                     mem_limit=RESOURCE_LIMITS["memory"],
                     nano_cpus=int(float(RESOURCE_LIMITS["cpus"]) * 1e9)
                 )
-                container.wait()
-                output = container.logs().decode("utf-8")
+                container.start()
+                execution_result = container.exec_run(["sh", "-c", f"cat {os.path.basename(code_file)+'input'} | python {os.path.basename(code_file)}"])
+                output = execution_result.output.decode("utf-8")
+                container.stop()
             elif language=="c":
                 IMAGE = "gcc:latest"
                 code_file = f"/tmp/{uuid.uuid4()}.c"
@@ -59,7 +65,7 @@ def get_submissions_router() -> APIRouter:
                 compile_result = container.exec_run(compile_command)
                 if compile_result.exit_code != 0:
                     raise RuntimeError(f"Compilation failed: {compile_result.output.decode('utf-8')}")
-                execute_command = f"./{os.path.basename(code_file)}.out"
+                execute_command = ["sh", "-c", f"cat {os.path.basename(code_file)+'input'} | ./{os.path.basename(code_file)}.out"]
                 execution_result = container.exec_run(execute_command)
                 output = execution_result.output.decode('utf-8')
                 container.stop()
@@ -83,7 +89,7 @@ def get_submissions_router() -> APIRouter:
                 compile_result = container.exec_run(compile_command)
                 if compile_result.exit_code != 0:
                     raise RuntimeError(f"Compilation failed: {compile_result.output.decode('utf-8')}")
-                execute_command = f"./{os.path.basename(code_file)}.out"
+                execute_command = ["sh", "-c", f"cat {os.path.basename(code_file)+'input'} | ./{os.path.basename(code_file)}.out"]
                 execution_result = container.exec_run(execute_command)
                 output = execution_result.output.decode("utf-8")
                 container.stop()
@@ -108,7 +114,7 @@ def get_submissions_router() -> APIRouter:
                 compile_result = container.exec_run(compile_command)
                 if compile_result.exit_code != 0:
                     raise RuntimeError(f"Compilation failed: {compile_result.output.decode('utf-8')}")
-                execute_command = f"java {class_name}"
+                execute_command = ["sh", "-c", f"cat {os.path.basename(code_file)+'input'} | java -cp . $(ls *.class | sed 's/.class$//')"]
                 execution_result = container.exec_run(execute_command)
                 output = execution_result.output.decode("utf-8")
                 container.stop()
@@ -118,18 +124,21 @@ def get_submissions_router() -> APIRouter:
                 code_file = f"/tmp/{uuid.uuid4()}.js"
                 with open(code_file, "w") as f:
                     f.write(code)
-                container = docker_client.containers.run(
+                container = docker_client.containers.create(
                     image=IMAGE,
-                    command=f"node {os.path.basename(code_file)}",
+                    command="bash",
                     volumes={os.path.dirname(code_file): {"bind": "/code", "mode": "rw"}},
                     working_dir="/code",
-                    remove=False,
-                    detach=True,
+                    tty=True,
                     mem_limit=RESOURCE_LIMITS["memory"],
                     nano_cpus=int(float(RESOURCE_LIMITS["cpus"]) * 1e9)
                 )
-                container.wait()
-                output = container.logs().decode("utf-8")
+                container.start()
+                execution_command=["sh", "-c", f"cat {os.path.basename(code_file)+'input'} | node {os.path.basename(code_file)}"]
+                execution_result = container.exec_run(execute_command)
+                output = execution_result.output.decode("utf-8")
+                container.stop()
+                container.remove()
             else:
                 return "Error: Language not supported"
             return output
