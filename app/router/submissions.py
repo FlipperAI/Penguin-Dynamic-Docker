@@ -66,11 +66,11 @@ def get_submissions_router() -> APIRouter:
                 container.stop()
                 container.remove()
             else:
-                return {"error": "language not supported"}
+                return "Error: Language not supported"
             print(output)
             return output
 
         except docker.errors.ContainerError as e:
-            return {"error": str(e)}
+            return {"error:",str(e)}
 
     return router
