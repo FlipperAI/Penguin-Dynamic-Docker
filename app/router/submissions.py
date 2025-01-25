@@ -151,10 +151,10 @@ def get_submissions_router() -> APIRouter:
                 output = {"exit_code": execution_result.exit_code, "stdout": stdout.decode('utf-8'), "stderr":stderr.decode('utf-8'), "exec_time": end_time- start_time}
                 if execution_result.exit_code != 0:
                     output = {"exit_code": execution_result.exit_code, "stdout": stdout.decode('utf-8'), "stderr":stderr.decode('utf-8'), "exec_time": end_time- start_time}
-                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, output)
+                    raise HTTPException(output, status_code=status.HTTP_400_BAD_REQUEST)
             except Exception as e:
                 output = {"exit_code": -1, "stdout":"", "stderr": "timed out waiting for code to run"}
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, output)
+                raise HTTPException(output, status_code=status.HTTP_400_BAD_REQUEST)
             asyncio.create_task(stop_and_remove_container(container))
             return output
 
