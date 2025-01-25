@@ -1,5 +1,9 @@
+import os
+from dotenv import load_dotenv
+import smtplib
 import uuid
 from typing import Optional
+from email.mime.multipart import MIMEMultipart
 
 from fastapi import Depends, Request
 from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin, models
@@ -13,6 +17,26 @@ from fastapi_users.db import SQLAlchemyUserDatabase
 from app.db import User, get_user_db
 
 SECRET = "SECRET"
+
+load_dotenv()
+
+def send_email_fct(fromaddr, toaddr, data, body):
+    msg = MIMEMultipart()  # instance of MIMEMultipart
+    msg['From'] = fromaddr
+    msg['To'] = toaddr
+    msg['Subject'] = data
+
+    body_email = body
+
+    s = smtplib.SMTP('smtp.gmail.com', 587)  # SMTP
+    s.starttls()
+    s.login('vmsa592@gmail.com',os.getenv('EMAIL_KEY'))
+
+    text = msg.as_string()
+
+    s.sendmail(fromaddr, toaddr, text)  # sending the email
+
+    s.quit()  # terminating the session
 
 
 class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
@@ -30,8 +54,10 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     async def on_after_request_verify(
         self, user: User, token: str, request: Optional[Request] = None
     ):
+        # send an email with the token to the user
+        message = f"Verification token: {token}"
+        send_email_fct('vmsa592@gmail.com',user.email,'hehe',message)
         print(f"Verification requested for user {user.id}. Verification token: {token}")
-
 
 async def get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db)):
     yield UserManager(user_db)
