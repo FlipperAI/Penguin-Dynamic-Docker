@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 import docker
 import uuid
 import os
@@ -25,7 +25,7 @@ def get_submissions_router() -> APIRouter:
     router = APIRouter()
 
     @router.post("/run")
-    async def run(submission: SubmissionCreate, user: User = Depends(current_active_user)):
+    async def run(submission: SubmissionCreate, response: Response, user: User = Depends(current_active_user)):
         try:
             code = submission.code
             language = submission.language
@@ -151,14 +151,16 @@ def get_submissions_router() -> APIRouter:
                 output = {"exit_code": execution_result.exit_code, "stdout": stdout.decode('utf-8'), "stderr":stderr.decode('utf-8'), "exec_time": end_time- start_time}
                 if execution_result.exit_code != 0:
                     output = {"exit_code": execution_result.exit_code, "stdout": stdout.decode('utf-8'), "stderr":stderr.decode('utf-8'), "exec_time": end_time- start_time}
-                    raise HTTPException(output, status_code=status.HTTP_400_BAD_REQUEST)
+                    response.status_code=status.HTTP_401_BAD_REQUEST
             except Exception as e:
                 output = {"exit_code": -1, "stdout":"", "stderr": "timed out waiting for code to run"}
-                raise HTTPException(output, status_code=status.HTTP_400_BAD_REQUEST)
+                response.status_code=status.HTTP_400_BAD_REQUEST
             asyncio.create_task(stop_and_remove_container(container))
-            return output
 
         except Exception as e:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail={"reason":str(e)})
+            output = {"exit_code": -1, "stdout":"", "stderr": str(e)}
+            response.status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+
+        return output
 
     return router
