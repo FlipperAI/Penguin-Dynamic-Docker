@@ -9,6 +9,10 @@ from app.router import ( submissions_router )
 from fastapi.middleware.cors import CORSMiddleware
 
 
+from httpx_oauth.clients.github import GitHubOAuth2
+
+github_oauth_client = GitHubOAuth2("Ov23liPzwZAfbD3KVu1n", "dc9d3f4d7a90155223dd338de4c2f90034c9a3fc", name='github')
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Not needed if you setup a migration system like Alembic
@@ -59,6 +63,23 @@ app.include_router(
     prefix="/submissions",
     tags=["submissions"],
 )
+app.include_router(
+    fastapi_users.get_oauth_router(
+        github_oauth_client,
+        auth_backend,
+        "SECRET",
+        associate_by_email=True,
+        is_verified_by_default=True,
+    ),
+    prefix="/auth/github",
+    tags=["auth"],
+)
+app.include_router(
+    fastapi_users.get_oauth_associate_router(github_oauth_client, UserRead, "SECRET"),
+    prefix="/auth/associate/github",
+    tags=["auth"],
+)
+
 
 @app.get("/authenticated-route")
 async def authenticated_route(user: User = Depends(current_active_user)):

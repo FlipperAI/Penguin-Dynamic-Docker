@@ -13,6 +13,7 @@ from fastapi_users.authentication import (
     JWTStrategy,
 )
 from fastapi_users.db import SQLAlchemyUserDatabase
+from httpx_oauth.clients.google import GoogleOAuth2
 
 from app.db import User, get_user_db
 
@@ -37,6 +38,10 @@ def send_email_fct(fromaddr, toaddr, data, body):
     s.sendmail(fromaddr, toaddr, text)  # sending the email
 
     s.quit()  # terminating the session
+google_oauth_client = GoogleOAuth2(
+    os.getenv("GOOGLE_OAUTH_CLIENT_ID", ""),
+    os.getenv("GOOGLE_OAUTH_CLIENT_SECRET", ""),
+)
 
 
 class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
@@ -54,10 +59,10 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     async def on_after_request_verify(
         self, user: User, token: str, request: Optional[Request] = None
     ):
-        # send an email with the token to the user
         message = f"Verification token: {token}"
-        send_email_fct('vmsa592@gmail.com',user.email,'hehe',message)
+        send_email_fct('vmsa592@gmail.com',user.email,'Verification for TuxCode',message)
         print(f"Verification requested for user {user.id}. Verification token: {token}")
+
 
 async def get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db)):
     yield UserManager(user_db)
@@ -79,4 +84,3 @@ auth_backend = AuthenticationBackend(
 fastapi_users = FastAPIUsers[User, uuid.UUID](get_user_manager, [auth_backend])
 
 current_active_user = fastapi_users.current_user(active=True)
-

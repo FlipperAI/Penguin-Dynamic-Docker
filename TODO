@@ -1,9 +1,9 @@
-- time limit
-- input
-- time taken
+- DONE time limit
+- DONE input
+- DONE time taken
+- DONE error output
+- DONE email
 - google auth
 - more languages
 - test cases
-- email
-- autoload containers
-- error output
+- LATER autoload containers
