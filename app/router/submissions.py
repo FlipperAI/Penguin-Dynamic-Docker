@@ -139,7 +139,7 @@ def get_submissions_router() -> APIRouter:
             else:
                 return "Error: Language not supported"
             signal.signal(signal.SIGALRM, handler)
-            signal.alarm(60)
+            signal.alarm(30)
             try:
                 start_time = time.perf_counter()  # Start timing
                 execution_result = container.exec_run(execute_command, demux=True)
@@ -150,9 +150,11 @@ def get_submissions_router() -> APIRouter:
                 if stderr is None: stderr = bytes()
                 output = {"exit_code": execution_result.exit_code, "stdout": stdout.decode('utf-8'), "stderr":stderr.decode('utf-8'), "exec_time": end_time- start_time}
                 if execution_result.exit_code != 0:
-                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=output)
+                    output = {"exit_code": execution_result.exit_code, "stdout": stdout.decode('utf-8'), "stderr":stderr.decode('utf-8'), "exec_time": end_time- start_time}
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, output)
             except Exception as e:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"reason":"timeout waiting for code to run"})
+                output = {"exit_code": -1, "stdout":"", "stderr": "timed out waiting for code to run"}
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, output)
             asyncio.create_task(stop_and_remove_container(container))
             return output
 
