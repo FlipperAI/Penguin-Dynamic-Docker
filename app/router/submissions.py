@@ -1,23 +1,28 @@
 from typing import Annotated
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 import docker
 import uuid
 import os
 from app.schemas import SubmissionCreate
 from app.users import current_active_user
 from app.db import User
+import asyncio
 import time
+import signal
 
 RESOURCE_LIMITS = {"memory": "256m", "cpus": "0.5"}
 
 docker_client = docker.from_env()
 
+async def stop_and_remove_container(container):
+    await asyncio.to_thread(container.stop)  # Offload blocking call to a thread
+    await asyncio.to_thread(container.remove)  # Offl
+
+def handler(signum, frame):
+    raise Exception("time's up")
+
 def get_submissions_router() -> APIRouter:
     router = APIRouter()
-
-    @router.get("/")
-    async def root():
-        return {"message": "server running"}
 
     @router.post("/run")
     async def run(submission: SubmissionCreate, user: User = Depends(current_active_user)):
@@ -43,9 +48,9 @@ def get_submissions_router() -> APIRouter:
                     nano_cpus=int(float(RESOURCE_LIMITS["cpus"]) * 1e9)
                 )
                 container.start()
-                execution_result = container.exec_run(["sh", "-c", f"cat {os.path.basename(code_file)+'input'} | python {os.path.basename(code_file)}"])
-                output = execution_result.output.decode("utf-8")
-                container.stop()
+
+
+                execute_command = ["sh", "-c", f"cat {os.path.basename(code_file)+'input'} | python {os.path.basename(code_file)}"]
             elif language=="c":
                 IMAGE = "gcc:latest"
                 code_file = f"/tmp/{uuid.uuid4()}.c"
@@ -68,10 +73,6 @@ def get_submissions_router() -> APIRouter:
                 if compile_result.exit_code != 0:
                     raise RuntimeError(f"Compilation failed: {compile_result.output.decode('utf-8')}")
                 execute_command = ["sh", "-c", f"cat {os.path.basename(code_file)+'input'} | ./{os.path.basename(code_file)}.out"]
-                execution_result = container.exec_run(execute_command)
-                output = execution_result.output.decode('utf-8')
-                container.stop()
-                container.remove()
             elif language == "cpp":
                 IMAGE = "gcc:latest"
                 code_file = f"/tmp/{uuid.uuid4()}.cpp"
@@ -94,10 +95,6 @@ def get_submissions_router() -> APIRouter:
                 if compile_result.exit_code != 0:
                     raise RuntimeError(f"Compilation failed: {compile_result.output.decode('utf-8')}")
                 execute_command = ["sh", "-c", f"cat {os.path.basename(code_file)+'input'} | ./{os.path.basename(code_file)}.out"]
-                execution_result = container.exec_run(execute_command)
-                output = execution_result.output.decode("utf-8")
-                container.stop()
-                container.remove()
             elif language == "java":
                 IMAGE = "eclipse-temurin:21"
                 code_file = f"/tmp/{uuid.uuid4()}.java"
@@ -121,10 +118,6 @@ def get_submissions_router() -> APIRouter:
                 if compile_result.exit_code != 0:
                     raise RuntimeError(f"Compilation failed: {compile_result.output.decode('utf-8')}")
                 execute_command = ["sh", "-c", f"cat {os.path.basename(code_file)+'input'} | java -cp . $(ls *.class | sed 's/.class$//')"]
-                execution_result = container.exec_run(execute_command)
-                output = execution_result.output.decode("utf-8")
-                container.stop()
-                container.remove()
             elif language == "javascript":
                 IMAGE = "node:18"
                 code_file = f"/tmp/{uuid.uuid4()}.js"
@@ -143,15 +136,27 @@ def get_submissions_router() -> APIRouter:
                 )
                 container.start()
                 execution_command=["sh", "-c", f"cat {os.path.basename(code_file)+'input'} | node {os.path.basename(code_file)}"]
-                execution_result = container.exec_run(execution_command)
-                output = execution_result.output.decode("utf-8")
-                container.stop()
-                container.remove()
             else:
                 return "Error: Language not supported"
+            signal.signal(signal.SIGALRM, handler)
+            signal.alarm(5)
+            try:
+                start_time = time.perf_counter()  # Start timing
+                execution_result = container.exec_run(execute_command, demux=True)
+                end_time = time.perf_counter()  # End timing
+                stdout = execution_result.output[0]
+                if stdout is None: stdout = bytes()
+                stderr = execution_result.output[1]
+                if stderr is None: stderr = bytes()
+                output = {"exit_code": execution_result.exit_code, "stdout": stdout.decode('utf-8'), "stderr":stderr.decode('utf-8'), "exec_time": end_time- start_time}
+                if exit_code != 0:
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=output)
+            except Exception as e:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"reason":"timeout waiting for code to run"})
+            asyncio.create_task(stop_and_remove_container(container))
             return output
 
-        except docker.errors.ContainerError as e:
-            return {"error:",str(e)}
+        except Exception as e:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail={"reason":str(e)})
 
     return router
