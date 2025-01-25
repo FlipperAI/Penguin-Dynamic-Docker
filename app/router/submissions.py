@@ -135,7 +135,7 @@ def get_submissions_router() -> APIRouter:
                     nano_cpus=int(float(RESOURCE_LIMITS["cpus"]) * 1e9)
                 )
                 container.start()
-                execution_command=["sh", "-c", f"cat {os.path.basename(code_file)+'input'} | node {os.path.basename(code_file)}"]
+                execute_command=["sh", "-c", f"cat {os.path.basename(code_file)+'input'} | node {os.path.basename(code_file)}"]
             else:
                 return "Error: Language not supported"
             signal.signal(signal.SIGALRM, handler)
@@ -151,15 +151,15 @@ def get_submissions_router() -> APIRouter:
                 output = {"exit_code": execution_result.exit_code, "stdout": stdout.decode('utf-8'), "stderr":stderr.decode('utf-8'), "exec_time": end_time- start_time}
                 if execution_result.exit_code != 0:
                     output = {"exit_code": execution_result.exit_code, "stdout": stdout.decode('utf-8'), "stderr":stderr.decode('utf-8'), "exec_time": end_time- start_time}
-                    response.status_code=status.HTTP_401_BAD_REQUEST
+                    #response.status_code=status.HTTP_401_BAD_REQUEST
             except Exception as e:
-                output = {"exit_code": -1, "stdout":"", "stderr": "timed out waiting for code to run"}
-                response.status_code=status.HTTP_400_BAD_REQUEST
+                output = {"exit_code": -1, "stdout":"", "stderr": str(e), "exec_time":0}
+                #response.status_code=status.HTTP_400_BAD_REQUEST
             asyncio.create_task(stop_and_remove_container(container))
 
         except Exception as e:
-            output = {"exit_code": -1, "stdout":"", "stderr": str(e)}
-            response.status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            output = {"exit_code": -1, "stdout":"", "stderr": str(e), "exec_time": 0}
+            #response.status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
 
         return output
 
