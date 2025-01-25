@@ -6,6 +6,7 @@ from app.db import User, create_db_and_tables
 from app.schemas import UserCreate, UserRead, UserUpdate
 from app.users import auth_backend, current_active_user, fastapi_users
 from app.router import ( submissions_router )
+from fastapi.middleware.cors import CORSMiddleware
 
 
 @asynccontextmanager
@@ -16,6 +17,19 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+origins = [
+    "*",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 app.include_router(
     fastapi_users.get_auth_router(auth_backend), prefix="/auth/jwt", tags=["auth"]
