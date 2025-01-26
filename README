@@ -1,0 +1,12 @@
+This is a the backend for the tuxcode website - you can dynamically create
+docker containers that will run code inside it
+
+Run `python main.py` or `uvicorn app.app:app` to run the server. You will need
+to fill up the .env with email creds to send verification email to users
+
+This uses docker and the following languages are supported as of now -
+- C++
+- C
+- Python
+- Java
+- Javascript
