@@ -13,7 +13,6 @@ from fastapi_users.authentication import (
     JWTStrategy,
 )
 from fastapi_users.db import SQLAlchemyUserDatabase
-from httpx_oauth.clients.google import GoogleOAuth2
 
 from app.db import User, get_user_db
 
@@ -38,11 +37,6 @@ def send_email_fct(fromaddr, toaddr, data, body):
     s.sendmail(fromaddr, toaddr, text)  # sending the email
 
     s.quit()  # terminating the session
-google_oauth_client = GoogleOAuth2(
-    os.getenv("GOOGLE_OAUTH_CLIENT_ID", ""),
-    os.getenv("GOOGLE_OAUTH_CLIENT_SECRET", ""),
-)
-
 
 class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     reset_password_token_secret = SECRET

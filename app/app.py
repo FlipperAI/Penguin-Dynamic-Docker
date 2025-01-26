@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
 
 from app.db import User, create_db_and_tables
 from app.schemas import UserCreate, UserRead, UserUpdate
@@ -81,7 +81,29 @@ app.include_router(
 )
 
 
-@app.get("/authenticated-route")
-async def authenticated_route(user: User = Depends(current_active_user)):
-    return {"message": f"Hello {user.email}!"}
+#@app.get("/authenticated-route")
+#async def authenticated_route(user: User = Depends(current_active_user)):
+#    return {"message": f"Hello {user.email}!"}
+#
+#async def redirect_to_frontend(request: Request, token: str = Depends(jwt_authentication.get_token)):
+#    frontend_url = "http://localhost:3000/auth/callback"  # Replace with your frontend URL
+#    return RedirectResponse(url=f"{frontend_url}?token={token}")
+#
+## Override the GitHub callback route
+#@app.get("/auth/github/callback", dependencies=[Depends(redirect_to_frontend)])
+#async def github_callback():
+#    # This route will be handled by the dependency
+#    pass
 
+
+
+@app.get("/auth/github/callback")
+async def github_callback(request: Request, user: User = Depends(fastapi_users.current_user(active=True))):
+    print("worrrrrrrrkingggggggggggg")
+    # Generate a JWT token for the user
+    strategy = get_jwt_strategy()
+    token = await strategy.write_token(user)
+
+    # Redirect to the frontend with the token as a query parameter
+    frontend_url = "http://localhost:3000/auth/github/callback"  # Replace with your frontend URL
+    return RedirectResponse(url=f"{frontend_url}?token={token}")
